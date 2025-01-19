@@ -108,6 +108,7 @@
   "dependencies": {
     "@turf/boolean-point-in-polygon": "^7.1.0",
     "@turf/helpers": "^7.1.0",
+    "expo-file-system": "^18.0.7",
     "geobuf": "^3.0.2",
     "pbf": "^3.2.1"
   }

@@ -1,4 +1,4 @@
-import * as fs from 'fs'
+import { File } from 'expo-file-system/next'
 
 import { decode } from 'geobuf'
 import inside from '@turf/boolean-point-in-polygon'
@@ -6,6 +6,9 @@ import { point } from '@turf/helpers'
 import Pbf from 'pbf'
 
 import { getTimezoneAtSea, oceanZones } from './oceanUtils'
+
+// NOTE: 使わない前提で適当な値に置き換えた
+const fs = undefined
 
 type MapLike = {
   get(key: string): any
@@ -112,29 +115,14 @@ function loadFeatures(
   len: number,
   fd: number = -1,
 ) {
-  let featureFileFd = fd
-  if (featureFileFd < 0) {
-    featureFileFd = fs.openSync(featureFilePath, 'r')
-    if (featureFileFd < 0) {
-      throw new Error('Failed to open geo.dat file')
-    }
-  }
+  // WARNING: 以下を前提とする。なおこれ以外の方法、例えば expo-asset のプラグインによる事前ロードなどはうまくいかなかった。
+  //   1. 親プロジェクト側で metro.config.js の assetExts に 'dat' を追加して dat ファイルをアセットバンドリングの対象にする。
+  //   2. 親プロジェクト側で起動時に `Asset.loadAsync(require("./node_modules/geo-tz/data/timezones-1970.geojson.geo.dat"))` を実行して dat ファイルを事前ロードする。(Expo の開発ビルドではアセットファイルはバンドルされず非同期で適宜ダウンロードすることになる。それを先にやっておくことで同期関数を保ち変更を最小限にとどめる)
+  //   3. 何かしらの方法で asset の localUri を受け渡す。最も簡単な globalThis を採用。
+  const file = new File(globalThis.geoTzFeatureFilePath).open()
+  file.offset = pos
 
-  // exact boundaries saved in file
-  // parse geojson for exact boundaries
-  const buf = Buffer.alloc(len)
-  const bytesRead = fs.readSync(featureFileFd, buf, 0, len, pos)
-
-  // close featureFileFd if we opened it
-  if (fd < 0) {
-    fs.closeSync(featureFileFd)
-  }
-
-  if (bytesRead < len) {
-    throw new Error(
-      `tried to read ${len} bytes from geo.dat but only got ${bytesRead} bytes`,
-    )
-  }
+  const buf = file.readBytes(len)
 
   const data = new Pbf(buf)
   return decode(data)
